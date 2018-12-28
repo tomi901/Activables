@@ -3,10 +3,14 @@ A system I made for Unity consisting of Switches that when they get activated, t
 
 It also includes a "CompositeSwitch" which contains a list of switches so it only activates when all the switches are active, like a AND gate.
 
-WIP at the moment.
+(All WIP at the moment)
 
-TODO:
+## TO DO:
 
--Commenting and summaries
--Examples
--Better Editor
+* Commenting and summaries
+* Examples
+* Better Editor
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
