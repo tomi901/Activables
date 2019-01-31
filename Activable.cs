@@ -1,41 +1,88 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.Events;
 
-
-public abstract class Activable : MonoBehaviour
+public class Activable : MonoBehaviour
 {
 
-    // Leave this instead of using auto-property to be able to see in the inspector in debug mode
+    [System.Serializable]
+    public class OnSwitchStateChangeEvent : UnityEvent<bool> { }
+
+    // Leave this instead of using auto-property to be able to see it in the inspector in debug mode
     private bool activated = false;
     /// <summary>
     /// The actual state of the this <see cref="Activable"/>, if set, it doesn't call the virtual method
     /// <see cref="OnActivatedStateChange(bool)"/>.
     /// </summary>
-    public bool Activated { get { return activated; } protected set { activated = value; } }
+    public bool Activated { get => activated; protected set => activated = value; }
+
+
+    [SerializeField]
+    private List<Activable> connectedActuators = new List<Activable>();
+    public ReadOnlyCollection<Activable> ConnectedActuators => connectedActuators.AsReadOnly();
+
+    protected virtual bool CanChangeState => true;
+
+    public IEnumerable<Activable> ConnectedSwitches => FindObjectsOfType<Activable>().Where(s => s.ContainsActuator(this));
+
+
+    [SerializeField]
+    private OnSwitchStateChangeEvent onActiveStateChange = default;
+    public event UnityAction<bool> OnActivateStateChange
+    {
+        add => onActiveStateChange.AddListener(value);
+        remove => onActiveStateChange.RemoveListener(value);
+    }
+
+
+    public bool ContainsActuator(Activable actuator) => connectedActuators.Contains(actuator);
+
 
     /// <summary>
     /// Sets the actual state of this <see cref="Activable"/> with and calls the 
     /// <see cref="OnActivatedStateChange(bool)"/> virtual method if the active state changes.
     /// </summary>
     /// <param name="active">The state to set.</param>
-    protected void SetActivated(bool active)
+    public void SetActivated(bool active)
     {
-        if (activated == active) return;
+        if (Activated == active || !CanChangeState) return;
 
-        activated = active;
+        Activated = active;
         OnActivatedStateChange(active);
+
+        foreach (Activable actuator in connectedActuators)
+        {
+            actuator.SetActivated(active);
+        }
     }
 
-    protected void ToggleState()
+    public void ToggleState() => SetActivated(!activated);
+
+    protected virtual void OnActivatedStateChange(bool active) { }
+
+
+    public static void GizmosDrawSwitchActuatorConnection(Activable @switch, Activable actuator)
     {
-        SetActivated(!activated);
+        if (@switch == null || actuator == null) return;
+
+        Gizmos.DrawLine(@switch.transform.position, actuator.transform.position);
     }
 
-    protected abstract void OnActivatedStateChange(bool active);
-
-    public static void GizmosDrawSwitchActuatorConnection(Switch @switch, ActivableActuator actuator)
+    protected virtual void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.green;
-        Gizmos.DrawLine(@switch.transform.position, actuator.transform.position);
+        foreach (Activable actuator in connectedActuators)
+        {
+            GizmosDrawSwitchActuatorConnection(this, actuator);
+        }
+
+        Gizmos.color = Color.yellow;
+        foreach (Activable @switch in ConnectedSwitches)
+        {
+            GizmosDrawSwitchActuatorConnection(@switch, this);
+        }
     }
 
 }
